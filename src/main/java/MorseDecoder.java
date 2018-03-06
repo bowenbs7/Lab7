@@ -50,9 +50,15 @@ public class MorseDecoder {
          */
         int totalBinCount = (int) Math.ceil(inputFile.getNumFrames() / BIN_SIZE);
         double[] returnBuffer = new double[totalBinCount];
-
+        int remainder = (int) inputFile.getNumFrames() % BIN_SIZE;
         double[] sampleBuffer = new double[BIN_SIZE * inputFile.getNumChannels()];
         for (int binIndex = 0; binIndex < totalBinCount; binIndex++) {
+            inputFile.readFrames(sampleBuffer, BIN_SIZE);
+            double power = 0;
+            for (int i = 0; i < BIN_SIZE; i++) {
+                power = power + sampleBuffer[i] * sampleBuffer[i];
+            }
+            returnBuffer[binIndex] = power;
             // Get the right number of samples from the inputFile
             // Sum all the samples together and store them in the returnBuffer
         }
@@ -63,7 +69,7 @@ public class MorseDecoder {
     private static final double POWER_THRESHOLD = 10;
 
     /** Bin threshold for dots or dashes. Related to BIN_SIZE. You may need to modify this value. */
-    private static final int DASH_BIN_COUNT = 8;
+    private static final int DASH_BIN_COUNT = 12;
 
     /**
      * Convert power measurements to dots, dashes, and spaces.
@@ -81,13 +87,34 @@ public class MorseDecoder {
          * There are four conditions to handle. Symbols should only be output when you see
          * transitions. You will also have to store how much power or silence you have seen.
          */
-
-        // if ispower and waspower
+        char[] dotDash = new char[(int) Math.ceil(powerMeasurements.length / DASH_BIN_COUNT)];
+        int charCounter = 0;
+        int powerCounter = 0;
+        for (int i = 1; i < powerMeasurements.length; i++) {
+            double isPower = powerMeasurements[i];
+            double wasPower = powerMeasurements[i - 1];
+            if (isPower >= POWER_THRESHOLD) {
+                powerCounter++;
+            }
+            if (i % DASH_BIN_COUNT == 0) {
+                if (powerCounter > 1 + 1 + 1) {
+                    dotDash[charCounter] = '-';
+                } else {
+                    dotDash[charCounter] = '.';
+                }
+                charCounter++;
+                powerCounter = 0;
+            }
+        }
+        // if ispower and waspower dash
         // else if ispower and not waspower
-        // else if issilence and wassilence
-        // else if issilence and not wassilence
-
-        return "";
+        // else if issilence and wassilence space
+        // else if issilence and not wassilence dot
+        String returned = "";
+        for (int i = 0; i < dotDash.length; i++) {
+            returned = returned + dotDash[i];
+        }
+        return returned;
     }
 
     /**
